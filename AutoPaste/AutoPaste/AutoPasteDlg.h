@@ -4,6 +4,49 @@
 
 #pragma once
 
+struct CBmpData
+{
+	BYTE* m_pBmpData;
+	UINT m_pBmpDataLen;
+	CBmpData(BYTE* pBmpData, UINT pBmpDataLen):m_pBmpData(pBmpData), m_pBmpDataLen(pBmpDataLen){}
+	~CBmpData()
+	{
+		if(m_pBmpData!=NULL)
+			delete[] m_pBmpData;
+	}
+};
+bool operator==(const CBmpData& a, const CBmpData& b);
+bool operator!=(const CBmpData& a, const CBmpData& b);
+
+struct CBmpArray
+{
+	CBmpData** m_pArrBmp;
+	UINT m_nBmp;
+	UINT m_iStart;
+	UINT m_iEnd;
+	struct Iterator
+	{
+		CBmpArray* m_pHost;
+		UINT index;
+		Iterator(CBmpArray* pHost);
+		void operator++();
+		void operator--();
+		void operator++(int);
+		void operator--(int);
+		CBmpData*& operator*();
+		CBmpData** operator->();
+		void SetStart();
+		void SetEnd();
+		bool Start();
+		bool End();
+	};
+	CBmpArray(UINT cnt);
+	~CBmpArray();
+	bool Full();
+	bool Empty();
+	CBmpData*& PushBack();
+	CBmpData*& PopFront();
+};
 
 // CAutoPasteDlg dialog
 class CAutoPasteDlg : public CDialogEx
@@ -11,7 +54,6 @@ class CAutoPasteDlg : public CDialogEx
 // Construction
 public:
 	CAutoPasteDlg(CWnd* pParent = NULL);	// standard constructor
-	~CAutoPasteDlg();
 
 // Dialog Data
 	enum { IDD = IDD_AUTOPASTE_DIALOG };
@@ -40,8 +82,11 @@ public:
 	BOOL m_bCapture;
 	CWnd* m_pWndCopy;
 	HWND m_hWndCopy;
+#if 0
 	BYTE* m_pBmpData;
 	UINT m_pBmpDataLen;
+#endif
+	CBmpArray m_arrBmp;
 	void SetCaptureState(BOOL bCapture);
 	void CopyWindow();
 	void SetNewTimer();

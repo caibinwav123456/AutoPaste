@@ -12,7 +12,100 @@
 #endif
 
 #define ID_TIMER 123
-// CAboutDlg dialog used for App About
+#define NUM_BMP_ARR 8
+
+//Bitmap Data Structures
+bool operator==(const CBmpData& a, const CBmpData& b)
+{
+	if(a.m_pBmpDataLen!=b.m_pBmpDataLen)
+		return false;
+	return memcmp(a.m_pBmpData, b.m_pBmpData, a.m_pBmpDataLen)==0;
+}
+bool operator!=(const CBmpData& a, const CBmpData& b)
+{
+	return !(a==b);
+}
+CBmpArray::Iterator::Iterator(CBmpArray* pHost):m_pHost(pHost),index(0){}
+void CBmpArray::Iterator::operator++()
+{
+	index=(index+1)%(m_pHost->m_nBmp+1);
+}
+void CBmpArray::Iterator::operator--()
+{
+	index=(index+m_pHost->m_nBmp)%(m_pHost->m_nBmp+1);
+}
+void CBmpArray::Iterator::operator++(int)
+{
+	index=(index+1)%(m_pHost->m_nBmp+1);
+}
+void CBmpArray::Iterator::operator--(int)
+{
+	index=(index+m_pHost->m_nBmp)%(m_pHost->m_nBmp+1);
+}
+CBmpData*& CBmpArray::Iterator::operator*()
+{
+	return m_pHost->m_pArrBmp[index];
+}
+CBmpData** CBmpArray::Iterator::operator->()
+{
+	return m_pHost->m_pArrBmp+index;
+}
+void CBmpArray::Iterator::SetStart()
+{
+	index=m_pHost->m_iStart;
+}
+void CBmpArray::Iterator::SetEnd()
+{
+	index=m_pHost->m_iEnd;
+}
+bool CBmpArray::Iterator::Start()
+{
+	return index==m_pHost->m_iStart;
+}
+bool CBmpArray::Iterator::End()
+{
+	return index==m_pHost->m_iEnd;
+}
+CBmpArray::CBmpArray(UINT cnt):m_nBmp(cnt),m_iStart(0),m_iEnd(0)
+{
+	ASSERT(m_nBmp>0);
+	m_pArrBmp=new CBmpData*[m_nBmp+1];
+	for(int i=0;i<=(int)m_nBmp;i++)
+		m_pArrBmp[i]=NULL;
+}
+CBmpArray::~CBmpArray()
+{
+	for(int i=0;i<=(int)m_nBmp;i++)
+	{
+		if(m_pArrBmp[i]!=NULL)
+			delete m_pArrBmp[i];
+	}
+	delete[] m_pArrBmp;
+}
+bool CBmpArray::Full()
+{
+	return (m_iEnd+1)%(m_nBmp+1)==m_iStart;
+}
+bool CBmpArray::Empty()
+{
+	return m_iEnd==m_iStart;
+}
+CBmpData*& CBmpArray::PushBack()
+{
+	UINT origin=m_iEnd,next=(m_iEnd+1)%(m_nBmp+1);
+	if(next==m_iStart)
+		return *(CBmpData**)NULL;
+	m_iEnd=next;
+	return m_pArrBmp[origin];
+}
+CBmpData*& CBmpArray::PopFront()
+{
+	if(m_iEnd==m_iStart)
+		return *(CBmpData**)NULL;
+	UINT origin=m_iStart;
+	m_iStart=(m_iStart+1)%(m_nBmp+1);
+	return m_pArrBmp[origin];
+}
 
 //Find path and name
 inline void GetPathAndName(const CString& fullpath,CString& path,CString& name,TCHAR sep=_T('\\'))
@@ -30,6 +123,7 @@ inline void GetPathAndName(const CString& fullpath,CString& path,CString& name,T
 	}
 }
 
+// CAboutDlg dialog used for App About
 class CAboutDlg : public CDialogEx
 {
 public:
@@ -62,23 +156,16 @@ END_MESSAGE_MAP()
 // CAutoPasteDlg dialog
 
 
-
-
 CAutoPasteDlg::CAutoPasteDlg(CWnd* pParent /*=NULL*/)
-	: CDialogEx(CAutoPasteDlg::IDD, pParent),m_bCapture(TRUE),m_pWndCopy(NULL),
-	m_hWndCopy(0),m_pBmpData(NULL),m_pBmpDataLen(0)
-	, m_tTimePicker(2000,1,1,0,5,0)
+	: CDialogEx(CAutoPasteDlg::IDD, pParent),m_bCapture(TRUE),m_pWndCopy(NULL)
+	,m_arrBmp(NUM_BMP_ARR)
+	,m_hWndCopy(0)
+	,m_tTimePicker(2000,1,1,0,5,0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	TCHAR desktop[256];
 	SHGetSpecialFolderPath(0,desktop,CSIDL_DESKTOPDIRECTORY,0);
 	m_strSavePath=CString(desktop)+_T("\\backup.bmp");
-}
-
-CAutoPasteDlg::~CAutoPasteDlg()
-{
-	if(m_pBmpData!=NULL)
-		delete[] m_pBmpData;
 }
 
 void CAutoPasteDlg::DoDataExchange(CDataExchange* pDX)
@@ -311,7 +398,19 @@ void CAutoPasteDlg::CopyWindow()
 	memcpy(pixel,&fh,sizeof(fh));
 	memcpy(pixel+sizeof(fh),info,infoheader_rgbquad_size);
 	UINT filesize=fh.bfSize;
-	BOOL changed=FALSE;
+	BOOL changed=TRUE;
+	CBmpData* bmpdata=new CBmpData(pixel,filesize);
+	CBmpArray::Iterator iter(&m_arrBmp);
+	for(iter.SetEnd();!iter.Start();)
+	{
+		iter--;
+		if(**iter==*bmpdata)
+		{
+			changed=FALSE;
+			break;
+		}
+	}
+#if 0
 	BYTE* tmp=m_pBmpData;
 	if(m_pBmpData==NULL||filesize!=m_pBmpDataLen||memcmp(pixel,m_pBmpData,filesize)!=0)
 		changed=TRUE;
@@ -319,12 +418,30 @@ void CAutoPasteDlg::CopyWindow()
 	m_pBmpData=pixel;
 	if(tmp!=NULL)
 		delete[] tmp;
+#endif
 	delete[] (char*)info;
 	mdc.SelectObject(oldbmp);
 	mdc.DeleteDC();
 	bmp.DeleteObject();
 	if(!changed)
+	{
+		delete bmpdata;
 		return;
+	}
+	if(m_arrBmp.Full())
+	{
+		CBmpData*& front=m_arrBmp.PopFront();
+		ASSERT(&front!=NULL);
+		if(front!=NULL)
+		{
+			delete front;
+			front=NULL;
+		}
+	}
+	CBmpData*& back=m_arrBmp.PushBack();
+	ASSERT(&back!=NULL);
+	ASSERT(back==NULL);
+	back=bmpdata;
 	static int cnt=1;
 	CString full;
 	if(CheckPath())
@@ -333,7 +450,7 @@ void CAutoPasteDlg::CopyWindow()
 		CFile file;
 		while(!file.Open(full,CFile::modeCreate|CFile::modeWrite))
 			Sleep(10*1000);
-		file.Write(m_pBmpData,m_pBmpDataLen);
+		file.Write(bmpdata->m_pBmpData,bmpdata->m_pBmpDataLen);
 		file.Close();
 		for(int i=cnt-100;i<cnt-10;i++)
 		{
