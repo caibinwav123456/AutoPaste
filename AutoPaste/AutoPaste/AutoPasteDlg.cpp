@@ -157,7 +157,7 @@ END_MESSAGE_MAP()
 
 
 CAutoPasteDlg::CAutoPasteDlg(CWnd* pParent /*=NULL*/)
-	: CDialogEx(CAutoPasteDlg::IDD, pParent),m_bCapture(TRUE),m_pWndCopy(NULL)
+	: CDialogEx(CAutoPasteDlg::IDD, pParent),m_bCapture(FALSE),m_pWndCopy(NULL),m_pClipWnd(NULL)
 	,m_arrBmp(NUM_BMP_ARR)
 	,m_hWndCopy(0)
 	,m_tTimePicker(2000,1,1,0,5,0)
@@ -184,7 +184,6 @@ BEGIN_MESSAGE_MAP(CAutoPasteDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_CAPTURE, &CAutoPasteDlg::OnBnClickedButtonCapture)
 	ON_WM_RBUTTONUP()
 	ON_WM_LBUTTONDOWN()
-	ON_WM_KILLFOCUS()
 	ON_BN_CLICKED(IDC_BUTTON_COPY, &CAutoPasteDlg::OnBnClickedButtonCopy)
 	ON_WM_TIMER()
 	ON_NOTIFY(DTN_DATETIMECHANGE, IDC_DATETIMEPICKER, &CAutoPasteDlg::OnDatetimechangeDatetimepicker)
@@ -193,6 +192,8 @@ BEGIN_MESSAGE_MAP(CAutoPasteDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_PATH, &CAutoPasteDlg::OnClickedButtonPath)
 	ON_EN_KILLFOCUS(IDC_EDIT_PATH, &CAutoPasteDlg::OnKillfocusEditPath)
 	ON_EN_SETFOCUS(IDC_EDIT_PATH, &CAutoPasteDlg::OnSetfocusEditPath)
+	ON_WM_MOUSEMOVE()
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 
@@ -227,6 +228,10 @@ BOOL CAutoPasteDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
+	m_pClipWnd=new CClipWnd;
+	if(!m_pClipWnd->CreateEx(0,NULL,_T("Clip"),WS_POPUP,CRect(0,0,0,0),NULL,0))
+		goto fail;
+
 	// TODO: Add extra initialization here
 	SetTimer(ID_TIMER,1000*60*5,NULL);
 
@@ -235,6 +240,9 @@ BOOL CAutoPasteDlg::OnInitDialog()
 	m_TimeInterval.SetTime(&m_tTimePicker);
 
 	return TRUE;  // return TRUE  unless you set the focus to a control
+fail:
+	EndDialog(IDCANCEL);
+	return TRUE;
 }
 
 void CAutoPasteDlg::OnSysCommand(UINT nID, LPARAM lParam)
@@ -290,23 +298,47 @@ void CAutoPasteDlg::SetCaptureState(BOOL bCapture)
 {
 	if(bCapture)
 	{
-		m_ButtonCapture.SetWindowText(_T("Release"));
+		m_bCapture=TRUE;
 		SetCapture();
-		m_bCapture=FALSE;
+		//ShowWindow(SW_SHOWMINIMIZED);
 	}
 	else
 	{
-		m_ButtonCapture.SetWindowText(_T("Capture"));
+		if(m_pClipWnd!=NULL)
+			m_pClipWnd->ReposeFrame();
+		m_bCapture=FALSE;
 		ReleaseCapture();
-		m_bCapture=TRUE;
+		ShowWindow(SW_SHOWNORMAL);
 	}
+}
+BOOL CAutoPasteDlg::DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd)
+{
+	if(m_pClipWnd==NULL||!m_bCapture)
+		return FALSE;
+	CWnd* pWnd=WindowFromPoint(*pt);
+	if(pWnd==NULL)
+		return FALSE;
+	*ppWnd=pWnd;
+	*phWnd=pWnd->GetSafeHwnd();
+	return TRUE;
+}
+BOOL CAutoPasteDlg::IsOccludedByFrame(POINT* pt)
+{
+	if(m_pClipWnd==NULL||!m_bCapture)
+		return FALSE;
+	CPoint point=*pt;
+	m_pClipWnd->ScreenToClient(&point);
+	CRgn rgn;
+	rgn.CreateRectRgn(0,0,0,0);
+	GetWindowRgn(rgn);
+	return rgn.PtInRegion(point);
 }
 
 void CAutoPasteDlg::OnBnClickedButtonCapture()
 {
 	// TODO: Add your control notification handler code here
 	UpdateData(TRUE);
-	SetCaptureState(m_bCapture);
+	SetCaptureState(TRUE);
 	UpdateData(FALSE);
 }
 
@@ -320,41 +352,48 @@ void CAutoPasteDlg::OnRButtonUp(UINT nFlags, CPoint point)
 }
 
 
+void CAutoPasteDlg::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	ClientToScreen(&point);
+	CWnd* pWnd;
+	HWND hWnd;
+	TRACE(_T("Do Detect pre: %d\n"),(int)m_bCapture);
+	if(m_bCapture)
+	{
+		static int times=0;
+		TRACE(_T("Do Detect: %d\n"),times);
+		times++;
+		if(IsOccludedByFrame(&point))
+		{
+			m_pClipWnd->ReposeFrame();
+		}
+		if(DetectWindow(&point,&pWnd,&hWnd))
+		{
+			CRect rect;
+			pWnd->GetWindowRect(&rect);
+			TRACE(_T("Detect: %d, %d, %d, %d\n"),rect.left,rect.top,rect.right,rect.bottom);
+			m_pClipWnd->ReposeFrame(&rect);
+		}
+	}
+	CDialogEx::OnMouseMove(nFlags, point);
+}
+
+
 void CAutoPasteDlg::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
-	do{
-		if(m_bCapture)
-			break;
+	/*if(m_pClipWnd!=NULL&&m_bCapture)
+	{
 		ClientToScreen(&point);
-		CWnd* pWnd=WindowFromPoint(point);
-		if(pWnd==NULL)
-			break;
-		HWND hwnd=pWnd->GetSafeHwnd();
-		HWND hwndbutton=0;
-		GetDlgItem(IDC_BUTTON_CAPTURE,&hwndbutton);
-		if(hwnd==0||hwnd==hwndbutton)
+		m_pClipWnd->ReposeFrame();
+		if(!DetectWindow(&point,&m_pWndCopy,&m_hWndCopy))
 		{
-			SetCaptureState(FALSE);
-			UpdateData(FALSE);
-			break;
+			m_pWndCopy=NULL;
+			m_hWndCopy=NULL;
 		}
-		CRect rect;
-		pWnd->GetWindowRect(&rect);
-		CWnd* pDeskWnd=GetDesktopWindow();
-		CWindowDC wdc(pDeskWnd);
-		CPen pen;
-		pen.CreatePen(PS_SOLID,10,RGB(255,0,0));
-		CPen* oldpen=wdc.SelectObject(&pen);
-		wdc.SelectStockObject(NULL_BRUSH);
-		//rect.MoveToXY(0,0);
-		wdc.Rectangle(&rect);
-		wdc.SelectObject(oldpen);
-		pen.DeleteObject();
-		pDeskWnd->ReleaseDC(&wdc);
-		m_pWndCopy=pWnd;
-		m_hWndCopy=hwnd;
-	}while(false);
+		SetCaptureState(FALSE);
+	}*/
 	CDialogEx::OnLButtonDown(nFlags, point);
 }
 
@@ -468,15 +507,6 @@ void CAutoPasteDlg::OnBnClickedButtonCopy()
 	CopyWindow();
 }
 
-void CAutoPasteDlg::OnKillFocus(CWnd* pNewWnd)
-{
-	CDialogEx::OnKillFocus(pNewWnd);
-	SetCaptureState(FALSE);
-	UpdateData(FALSE);
-	// TODO: Add your message handler code here
-}
-
-
 void CAutoPasteDlg::OnTimer(UINT_PTR nIDEvent)
 {
 	// TODO: Add your message handler code here and/or call default
@@ -573,4 +603,14 @@ BOOL CAutoPasteDlg::CheckPath()
 		return FALSE;
 	}
 	return TRUE;
+}
+
+
+void CAutoPasteDlg::OnDestroy()
+{
+	CDialogEx::OnDestroy();
+
+	// TODO: Add your message handler code here
+	if(m_pClipWnd!=NULL)
+		m_pClipWnd->DestroyWindow();
 }

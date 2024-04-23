@@ -40,7 +40,7 @@
 
 
 
-
+#define FRAME_LINE_WIDTH 5
 
 
 

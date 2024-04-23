@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "ClipWnd.h"
 
 struct CBmpData
 {
@@ -61,44 +62,53 @@ public:
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV support
 
+	void SetCaptureState(BOOL bCapture);
+	void CopyWindow();
+	void SetNewTimer();
+	BOOL CheckPath();
+
+	BOOL DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd);
+	BOOL IsOccludedByFrame(POINT* pt);
 
 // Implementation
 protected:
 	HICON m_hIcon;
 
-	// Generated message map functions
-	virtual BOOL OnInitDialog();
-	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
-	afx_msg void OnPaint();
-	afx_msg HCURSOR OnQueryDragIcon();
-	DECLARE_MESSAGE_MAP()
-public:
-	afx_msg void OnBnClickedButtonCapture();
-	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
-	afx_msg void OnKillFocus(CWnd* pNewWnd);
-	afx_msg void OnBnClickedButtonCopy();
+private:
 	CButton m_ButtonCapture;
 	BOOL m_bCapture;
 	CWnd* m_pWndCopy;
 	HWND m_hWndCopy;
+	CClipWnd* m_pClipWnd;
+
 #if 0
 	BYTE* m_pBmpData;
 	UINT m_pBmpDataLen;
 #endif
 	CBmpArray m_arrBmp;
-	void SetCaptureState(BOOL bCapture);
-	void CopyWindow();
-	void SetNewTimer();
-	BOOL CheckPath();
-	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	CDateTimeCtrl m_TimeInterval;
-	afx_msg void OnDatetimechangeDatetimepicker(NMHDR* pNMHDR, LRESULT* pResult);
 	CTime m_tTimePicker;
+	CString m_strSavePath;
+
+	// Generated message map functions
+private:
+	virtual BOOL OnInitDialog();
+
+	DECLARE_MESSAGE_MAP()
+	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
+	afx_msg void OnPaint();
+	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg void OnBnClickedButtonCapture();
+	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnBnClickedButtonCopy();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnDatetimechangeDatetimepicker(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnKillfocusDatetimepicker(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg void OnSetfocusDatetimepicker(NMHDR* pNMHDR, LRESULT* pResult);
-	CString m_strSavePath;
 	afx_msg void OnClickedButtonPath();
 	afx_msg void OnKillfocusEditPath();
 	afx_msg void OnSetfocusEditPath();
+	afx_msg void OnDestroy();
 };
