@@ -41,6 +41,7 @@
 
 
 #define FRAME_LINE_WIDTH 5
+#define WM_NOTIFY_HIDE_CLIP_WND (WM_USER+100)
 
 
 

@@ -67,9 +67,6 @@ public:
 	void SetNewTimer();
 	BOOL CheckPath();
 
-	BOOL DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd);
-	BOOL IsOccludedByFrame(POINT* pt);
-
 // Implementation
 protected:
 	HICON m_hIcon;
@@ -95,6 +92,7 @@ private:
 	virtual BOOL OnInitDialog();
 
 	DECLARE_MESSAGE_MAP()
+	afx_msg LRESULT OnNotifyHideClip(WPARAM wParam,LPARAM lParam);
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();

@@ -178,6 +178,7 @@ void CAutoPasteDlg::DoDataExchange(CDataExchange* pDX)
 }
 
 BEGIN_MESSAGE_MAP(CAutoPasteDlg, CDialogEx)
+	ON_MESSAGE(WM_NOTIFY_HIDE_CLIP_WND,&CAutoPasteDlg::OnNotifyHideClip)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
@@ -228,7 +229,7 @@ BOOL CAutoPasteDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
-	m_pClipWnd=new CClipWnd;
+	m_pClipWnd=new CClipWnd(this);
 	if(!m_pClipWnd->CreateEx(0,NULL,_T("Clip"),WS_POPUP,CRect(0,0,0,0),NULL,0))
 		goto fail;
 
@@ -298,40 +299,20 @@ void CAutoPasteDlg::SetCaptureState(BOOL bCapture)
 {
 	if(bCapture)
 	{
+		if(m_pClipWnd!=NULL)
+			m_pClipWnd->ReposeFrame(TRUE);
 		m_bCapture=TRUE;
-		SetCapture();
-		//ShowWindow(SW_SHOWMINIMIZED);
+		//SetCapture();
+		ShowWindow(SW_SHOWMINIMIZED);
 	}
 	else
 	{
 		if(m_pClipWnd!=NULL)
 			m_pClipWnd->ReposeFrame();
 		m_bCapture=FALSE;
-		ReleaseCapture();
+		//ReleaseCapture();
 		ShowWindow(SW_SHOWNORMAL);
 	}
-}
-BOOL CAutoPasteDlg::DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd)
-{
-	if(m_pClipWnd==NULL||!m_bCapture)
-		return FALSE;
-	CWnd* pWnd=WindowFromPoint(*pt);
-	if(pWnd==NULL)
-		return FALSE;
-	*ppWnd=pWnd;
-	*phWnd=pWnd->GetSafeHwnd();
-	return TRUE;
-}
-BOOL CAutoPasteDlg::IsOccludedByFrame(POINT* pt)
-{
-	if(m_pClipWnd==NULL||!m_bCapture)
-		return FALSE;
-	CPoint point=*pt;
-	m_pClipWnd->ScreenToClient(&point);
-	CRgn rgn;
-	rgn.CreateRectRgn(0,0,0,0);
-	GetWindowRgn(rgn);
-	return rgn.PtInRegion(point);
 }
 
 void CAutoPasteDlg::OnBnClickedButtonCapture()
@@ -346,8 +327,8 @@ void CAutoPasteDlg::OnBnClickedButtonCapture()
 void CAutoPasteDlg::OnRButtonUp(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
-	SetCaptureState(FALSE);
-	UpdateData(FALSE);
+	//SetCaptureState(FALSE);
+	//UpdateData(FALSE);
 	CDialogEx::OnRButtonUp(nFlags, point);
 }
 
@@ -355,27 +336,6 @@ void CAutoPasteDlg::OnRButtonUp(UINT nFlags, CPoint point)
 void CAutoPasteDlg::OnMouseMove(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
-	ClientToScreen(&point);
-	CWnd* pWnd;
-	HWND hWnd;
-	TRACE(_T("Do Detect pre: %d\n"),(int)m_bCapture);
-	if(m_bCapture)
-	{
-		static int times=0;
-		TRACE(_T("Do Detect: %d\n"),times);
-		times++;
-		if(IsOccludedByFrame(&point))
-		{
-			m_pClipWnd->ReposeFrame();
-		}
-		if(DetectWindow(&point,&pWnd,&hWnd))
-		{
-			CRect rect;
-			pWnd->GetWindowRect(&rect);
-			TRACE(_T("Detect: %d, %d, %d, %d\n"),rect.left,rect.top,rect.right,rect.bottom);
-			m_pClipWnd->ReposeFrame(&rect);
-		}
-	}
 	CDialogEx::OnMouseMove(nFlags, point);
 }
 
@@ -395,6 +355,12 @@ void CAutoPasteDlg::OnLButtonDown(UINT nFlags, CPoint point)
 		SetCaptureState(FALSE);
 	}*/
 	CDialogEx::OnLButtonDown(nFlags, point);
+}
+
+LRESULT CAutoPasteDlg::OnNotifyHideClip(WPARAM wParam,LPARAM lParam)
+{
+	SetCaptureState(FALSE);
+	return 0;
 }
 
 inline void CalcFullPath(const CString& pathname,CString& full,int cnt)
