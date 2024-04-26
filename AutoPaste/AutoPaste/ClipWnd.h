@@ -1,4 +1,5 @@
 #pragma once
+#include "struct.h"
 class CClipWnd : public CWnd
 {
 public:
@@ -6,6 +7,7 @@ public:
 	void ReposeFrame(BOOL bShow=FALSE);
 
 public:
+	BOOL ComputeCaptureWnd(POINT* pt,HWND* phWnd,LPRECT lpRect);
 	BOOL DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent=NULL);
 	BOOL IsOccludedByFrame(POINT* pt);
 
@@ -13,6 +15,7 @@ private:
 	CWnd* m_pWndHost;
 	CRect m_rcScreen;
 	CRect m_rcWndCapture;
+	CaptureStat m_CapStat;
 
 private:
 	virtual void PostNcDestroy();
@@ -24,5 +27,8 @@ private:
 	afx_msg void OnPaint();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnRButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 };

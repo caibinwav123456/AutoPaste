@@ -59,6 +59,23 @@ void CClipWnd::ReposeFrame(BOOL bShow)
 		Invalidate();
 	}
 }
+BOOL CClipWnd::ComputeCaptureWnd(POINT* pt,HWND* phWnd,LPRECT lpRect)
+{
+	HWND hWnd=NULL,h=NULL;
+	CRect rc,rect(0,0,0,0);
+	while(DetectWindow(pt,&hWnd,&rc,hWnd))
+	{
+		h=hWnd;
+		rect=rc;
+	}
+	if(h!=NULL)
+	{
+		*phWnd=h;
+		*lpRect=rect;
+		return TRUE;
+	}
+	return FALSE;
+}
 BOOL CClipWnd::DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent)
 {
 	for(HWND hWnd=::GetTopWindow(hWndParent);hWnd!=NULL;hWnd=::GetWindow(hWnd,GW_HWNDNEXT))
@@ -93,7 +110,10 @@ BEGIN_MESSAGE_MAP(CClipWnd, CWnd)
 	ON_WM_PAINT()
 	ON_WM_SIZE()
 	ON_WM_RBUTTONDOWN()
+	ON_WM_RBUTTONUP()
 	ON_WM_MOUSEMOVE()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 
 BOOL CClipWnd::OnEraseBkgnd(CDC* pDC)
@@ -179,18 +199,60 @@ void CClipWnd::OnRButtonDown(UINT nFlags, CPoint point)
 	CWnd::OnRButtonDown(nFlags, point);
 }
 
+void CClipWnd::OnRButtonUp(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	CWnd::OnRButtonUp(nFlags, point);
+}
 
 void CClipWnd::OnMouseMove(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
-	ClientToScreen(&point);
-	HWND hWnd=NULL;
-	CRect rc;
-	m_rcWndCapture=CRect(0,0,0,0);
-	while(DetectWindow(&point,&hWnd,&rc,hWnd))
+	CPoint pt=point;
+	ClientToScreen(&pt);
+	HWND hWnd;
+	if(!ComputeCaptureWnd(&pt,&hWnd,&m_rcWndCapture))
+		m_rcWndCapture=CRect(0,0,0,0);
+	if(m_CapStat.hWnd!=NULL)
 	{
-		m_rcWndCapture=rc;
+		::ScreenToClient(m_CapStat.hWnd,&pt);
+		::SendMessage(m_CapStat.hWnd,WM_MOUSEMOVE,nFlags&~MK_CONTROL,MAKELONG(pt.x,pt.y));
 	}
 	Invalidate();
 	CWnd::OnMouseMove(nFlags, point);
+}
+
+
+void CClipWnd::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	CPoint pt=point;
+	ClientToScreen(&pt);
+	if((nFlags&MK_CONTROL))
+	{
+		if(!ComputeCaptureWnd(&pt,&m_CapStat.hWnd,&m_CapStat.rcWnd))
+			m_CapStat.rcWnd=CRect(0,0,0,0);
+		m_pWndHost->SendMessage(WM_NOTIFY_CAPTURE_STAT,(WPARAM)&m_CapStat);
+		m_pWndHost->SendMessage(WM_NOTIFY_HIDE_CLIP_WND);
+	}
+	else if(m_CapStat.hWnd!=NULL)
+	{
+		::ScreenToClient(m_CapStat.hWnd,&pt);
+		::SendMessage(m_CapStat.hWnd,WM_LBUTTONDOWN,MK_LBUTTON,MAKELONG(pt.x,pt.y));
+	}
+	CWnd::OnLButtonDown(nFlags, point);
+}
+
+
+void CClipWnd::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	// TODO: Add your message handler code here and/or call default
+	CPoint pt=point;
+	ClientToScreen(&pt);
+	if(m_CapStat.hWnd!=NULL)
+	{
+		::ScreenToClient(m_CapStat.hWnd,&pt);
+		::SendMessage(m_CapStat.hWnd,WM_LBUTTONUP,0,MAKELONG(pt.x,pt.y));
+	}
+	CWnd::OnLButtonUp(nFlags, point);
 }

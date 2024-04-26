@@ -6,6 +6,7 @@
 #include "AutoPaste.h"
 #include "AutoPasteDlg.h"
 #include "afxdialogex.h"
+#include "struct.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -181,12 +182,11 @@ void CAutoPasteDlg::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CAutoPasteDlg, CDialogEx)
 	ON_MESSAGE(WM_NOTIFY_HIDE_CLIP_WND,&CAutoPasteDlg::OnNotifyHideClip)
+	ON_MESSAGE(WM_NOTIFY_CAPTURE_STAT,&CAutoPasteDlg::OnNotifySetCaptureStat)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BUTTON_CAPTURE, &CAutoPasteDlg::OnBnClickedButtonCapture)
-	ON_WM_RBUTTONUP()
-	ON_WM_LBUTTONDOWN()
 	ON_BN_CLICKED(IDC_BUTTON_COPY, &CAutoPasteDlg::OnBnClickedButtonCopy)
 	ON_WM_TIMER()
 	ON_NOTIFY(DTN_DATETIMECHANGE, IDC_DATETIMEPICKER, &CAutoPasteDlg::OnDatetimechangeDatetimepicker)
@@ -195,7 +195,6 @@ BEGIN_MESSAGE_MAP(CAutoPasteDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON_PATH, &CAutoPasteDlg::OnClickedButtonPath)
 	ON_EN_KILLFOCUS(IDC_EDIT_PATH, &CAutoPasteDlg::OnKillfocusEditPath)
 	ON_EN_SETFOCUS(IDC_EDIT_PATH, &CAutoPasteDlg::OnSetfocusEditPath)
-	ON_WM_MOUSEMOVE()
 	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
@@ -304,7 +303,6 @@ void CAutoPasteDlg::SetCaptureState(BOOL bCapture)
 		if(m_pClipWnd!=NULL)
 			m_pClipWnd->ReposeFrame(TRUE);
 		m_bCapture=TRUE;
-		//SetCapture();
 		ShowWindow(SW_SHOWMINIMIZED);
 	}
 	else
@@ -312,7 +310,6 @@ void CAutoPasteDlg::SetCaptureState(BOOL bCapture)
 		if(m_pClipWnd!=NULL)
 			m_pClipWnd->ReposeFrame();
 		m_bCapture=FALSE;
-		//ReleaseCapture();
 		ShowWindow(SW_SHOWNORMAL);
 	}
 }
@@ -326,42 +323,16 @@ void CAutoPasteDlg::OnBnClickedButtonCapture()
 }
 
 
-void CAutoPasteDlg::OnRButtonUp(UINT nFlags, CPoint point)
-{
-	// TODO: Add your message handler code here and/or call default
-	//SetCaptureState(FALSE);
-	//UpdateData(FALSE);
-	CDialogEx::OnRButtonUp(nFlags, point);
-}
-
-
-void CAutoPasteDlg::OnMouseMove(UINT nFlags, CPoint point)
-{
-	// TODO: Add your message handler code here and/or call default
-	CDialogEx::OnMouseMove(nFlags, point);
-}
-
-
-void CAutoPasteDlg::OnLButtonDown(UINT nFlags, CPoint point)
-{
-	// TODO: Add your message handler code here and/or call default
-	/*if(m_pClipWnd!=NULL&&m_bCapture)
-	{
-		ClientToScreen(&point);
-		m_pClipWnd->ReposeFrame();
-		if(!DetectWindow(&point,&m_pWndCopy,&m_hWndCopy))
-		{
-			m_pWndCopy=NULL;
-			m_hWndCopy=NULL;
-		}
-		SetCaptureState(FALSE);
-	}*/
-	CDialogEx::OnLButtonDown(nFlags, point);
-}
-
 LRESULT CAutoPasteDlg::OnNotifyHideClip(WPARAM wParam,LPARAM lParam)
 {
 	SetCaptureState(FALSE);
+	return 0;
+}
+LRESULT CAutoPasteDlg::OnNotifySetCaptureStat(WPARAM wParam,LPARAM lParam)
+{
+	CaptureStat* cs=(CaptureStat*)wParam;
+	m_hWndCopy=cs->hWnd;
+	m_rcWndCopy=cs->rcWnd;
 	return 0;
 }
 

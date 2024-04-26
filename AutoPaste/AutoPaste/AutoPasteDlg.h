@@ -76,6 +76,7 @@ private:
 	BOOL m_bCapture;
 	CWnd* m_pWndCopy;
 	HWND m_hWndCopy;
+	CRect m_rcWndCopy;
 	CClipWnd* m_pClipWnd;
 
 #if 0
@@ -93,13 +94,11 @@ private:
 
 	DECLARE_MESSAGE_MAP()
 	afx_msg LRESULT OnNotifyHideClip(WPARAM wParam,LPARAM lParam);
+	afx_msg LRESULT OnNotifySetCaptureStat(WPARAM wParam,LPARAM lParam);
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	afx_msg void OnBnClickedButtonCapture();
-	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
-	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
-	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnBnClickedButtonCopy();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnDatetimechangeDatetimepicker(NMHDR* pNMHDR, LRESULT* pResult);
