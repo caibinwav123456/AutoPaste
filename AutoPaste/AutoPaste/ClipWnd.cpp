@@ -2,7 +2,7 @@
 #include "ClipWnd.h"
 
 CClipWnd::CClipWnd(CWnd* host):m_pWndHost(host),
-	m_rcScreen(0,0,0,0)
+	m_rcScreen(0,0,0,0),m_rcWndCapture(0,0,0,0)
 {
 
 }
@@ -48,23 +48,34 @@ void CClipWnd::ReposeFrame(BOOL bShow)
 	{
 		ShowWindow(SW_SHOW);
 		::SetLayeredWindowAttributes(m_hWnd, RGB(0, 0, 0), 128, LWA_ALPHA);
+#if 1
 		::SetWindowPos(GetSafeHwnd(),HWND_TOPMOST,m_rcScreen.left,m_rcScreen.top,
 			m_rcScreen.Width(),m_rcScreen.Height(),0);
+#else
+		CRect rc(100,100,200,200);
+		::SetWindowPos(GetSafeHwnd(),HWND_TOPMOST,rc.left,rc.top,
+			rc.Width(),rc.Height(),0);
+#endif
 		Invalidate();
 	}
 }
-BOOL CClipWnd::DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd,CWnd* pWndParent)
+BOOL CClipWnd::DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent)
 {
-	CWnd* pWnd;
-	if(pWndParent!=NULL)
-		pWnd=pWndParent->ChildWindowFromPoint(*pt);
-	else
-		pWnd=WindowFromPoint(*pt);
-	if(pWnd==NULL)
-		return FALSE;
-	*ppWnd=pWnd;
-	*phWnd=pWnd->GetSafeHwnd();
-	return TRUE;
+	for(HWND hWnd=::GetTopWindow(hWndParent);hWnd!=NULL;hWnd=::GetWindow(hWnd,GW_HWNDNEXT))
+	{
+		//hWnd=::FindWindowEx(hWndParent,hWnd,NULL,NULL);
+		if(hWnd==m_hWnd||!::IsWindowVisible(hWnd))
+			continue;
+		CRect rect;
+		::GetWindowRect(hWnd,&rect);
+		if(rect.PtInRect(*pt))
+		{
+			*phWnd=hWnd;
+			*lpRect=rect;
+			return TRUE;
+		}
+	}
+	return FALSE;
 }
 BOOL CClipWnd::IsOccludedByFrame(POINT* pt)
 {
@@ -101,9 +112,9 @@ void CClipWnd::OnPaint()
 	CRect rc;
 	GetClientRect(&rc);
 	dc.FillSolidRect(&rc,RGB(0,0,0));
-	if(m_WndCapture.empty())
+	if(m_rcWndCapture==CRect(0,0,0,0))
 		return;
-	rc=m_WndCapture.back().rcWnd;
+	rc=m_rcWndCapture;
 	CPoint pt(0,0);
 	ScreenToClient(&pt);
 	rc.OffsetRect(pt);
@@ -173,46 +184,13 @@ void CClipWnd::OnMouseMove(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
 	ClientToScreen(&point);
-	CWnd* pWnd=NULL;
 	HWND hWnd=NULL;
-	while(!m_WndCapture.empty())
+	CRect rc;
+	m_rcWndCapture=CRect(0,0,0,0);
+	while(DetectWindow(&point,&hWnd,&rc,hWnd))
 	{
-		if(!m_WndCapture.back().rcWnd.PtInRect(point))
-			m_WndCapture.pop_back();
-		else
-			break;
-	}
-	if(m_WndCapture.empty())
-	{
-		ReposeFrame();
-		if(DetectWindow(&point,&pWnd,&hWnd))
-		{
-			CRect rect;
-			pWnd->GetWindowRect(&rect);
-			m_WndCapture.push_back(WndStat(hWnd,rect));
-		}
-		ReposeFrame(TRUE);
-	}
-	else
-	{
-		hWnd=m_WndCapture.back().hWnd;
-		pWnd=FromHandle(hWnd);
-	}
-	if(!m_WndCapture.empty())
-	{
-		while(DetectWindow(&point,&pWnd,&hWnd,pWnd))
-		{
-			TRACE(_T("(%p,%p)"),hWnd,pWnd);
-			if(hWnd==m_WndCapture.back().hWnd)
-				break;
-			CRect rect;
-			pWnd->GetWindowRect(&rect);
-			m_WndCapture.push_back(WndStat(hWnd,rect));
-		}
+		m_rcWndCapture=rc;
 	}
 	Invalidate();
-	TRACE(_T("Dump:\n"));
-	for(int i=0;i<(int)m_WndCapture.size();i++)
-		TRACE(_T("(%p)"),m_WndCapture[i].hWnd);
 	CWnd::OnMouseMove(nFlags, point);
 }

@@ -1,13 +1,4 @@
 #pragma once
-#include <vector>
-using namespace std;
-struct WndStat
-{
-	HWND hWnd;
-	CRect rcWnd;
-	WndStat(){}
-	WndStat(HWND _hWnd,CRect _rcWnd):hWnd(_hWnd),rcWnd(_rcWnd){}
-};
 class CClipWnd : public CWnd
 {
 public:
@@ -15,13 +6,13 @@ public:
 	void ReposeFrame(BOOL bShow=FALSE);
 
 public:
-	BOOL DetectWindow(POINT* pt,CWnd** ppWnd,HWND* phWnd,CWnd* pWndParent=NULL);
+	BOOL DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent=NULL);
 	BOOL IsOccludedByFrame(POINT* pt);
 
 private:
 	CWnd* m_pWndHost;
 	CRect m_rcScreen;
-	vector<WndStat> m_WndCapture;
+	CRect m_rcWndCapture;
 
 private:
 	virtual void PostNcDestroy();

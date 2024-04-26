@@ -14,6 +14,8 @@
 #define ID_TIMER 123
 #define NUM_BMP_ARR 8
 
+#pragma warning(disable:4996)
+
 //Bitmap Data Structures
 bool operator==(const CBmpData& a, const CBmpData& b)
 {
