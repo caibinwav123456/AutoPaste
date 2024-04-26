@@ -349,6 +349,13 @@ void CAutoPasteDlg::CopyWindow()
 {
 	if(m_hWndCopy==0)
 		return;
+	if(!IsWindow(m_hWndCopy))
+	{
+		m_hWndCopy=0;
+		m_pWndCopy=NULL;
+		m_rcWndCopy=CRect(0,0,0,0);
+		return;
+	}
 	m_pWndCopy=FromHandle(m_hWndCopy);
 	CWindowDC dc(m_pWndCopy);
 	CDC mdc;
