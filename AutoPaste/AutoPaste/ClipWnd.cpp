@@ -271,6 +271,8 @@ HWND CreateFullscreenWindow(HWND hwnd)
 void CClipWnd::OnRButtonDown(UINT nFlags, CPoint point)
 {
 	// TODO: Add your message handler code here and/or call default
+	EnableAutoPress(FALSE);
+	m_bShowClick=FALSE;
 	m_pWndHost->SendMessage(WM_NOTIFY_HIDE_CLIP_WND);
 	CWnd::OnRButtonDown(nFlags, point);
 }
@@ -306,8 +308,11 @@ void CClipWnd::OnLButtonDown(UINT nFlags, CPoint point)
 	ClientToScreen(&pt);
 	if(m_bShowClick)
 	{
-		m_ptClick=pt;
-		Invalidate();
+		if(!m_bAutoPress)
+		{
+			m_ptClick=pt;
+			Invalidate();
+		}
 	}
 	else if((nFlags&MK_CONTROL))
 	{
@@ -358,7 +363,8 @@ void CClipWnd::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
 			m_ptClick=m_rcScreen.CenterPoint();
 		break;
 	case VK_RETURN:
-		EnableAutoPress(TRUE);
+		if(m_bShowClick)
+			EnableAutoPress(TRUE);
 		break;
 	}
 	Invalidate();
