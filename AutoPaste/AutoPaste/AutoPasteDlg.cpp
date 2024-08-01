@@ -320,6 +320,7 @@ void CAutoPasteDlg::OnBnClickedButtonCapture()
 	UpdateData(TRUE);
 	SetCaptureState(TRUE);
 	UpdateData(FALSE);
+	m_pClipWnd->SetFocus();
 }
 
 

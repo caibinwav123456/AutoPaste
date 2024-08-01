@@ -1,10 +1,16 @@
 #include "stdafx.h"
 #include "ClipWnd.h"
 
+#define ID_TIMER_PRESS 456
+const int step_time_millisec[]={100,500,100,10000};
+#define num_step (sizeof(step_time_millisec)/sizeof(int))
+
 CClipWnd::CClipWnd(CWnd* host):m_pWndHost(host),
 	m_rcScreen(0,0,0,0),m_rcWndCapture(0,0,0,0)
 {
-
+	m_bShowClick=FALSE;
+	m_bAutoPress=FALSE;
+	m_iStep=-1;
 }
 
 void CClipWnd::PostNcDestroy()
@@ -35,6 +41,7 @@ int CClipWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (!GetMonitorInfo(hmon, &mi))
 		return -1;
 	m_rcScreen=mi.rcMonitor;
+	m_ptClick=m_rcScreen.CenterPoint();
 	return 0;
 }
 
@@ -42,12 +49,13 @@ void CClipWnd::ReposeFrame(BOOL bShow)
 {
 	if(!bShow)
 	{
+		EnableAutoPress(FALSE);
 		ShowWindow(SW_HIDE);
 	}
 	else
 	{
 		ShowWindow(SW_SHOW);
-		::SetLayeredWindowAttributes(m_hWnd, RGB(0, 0, 0), 128, LWA_ALPHA);
+		::SetLayeredWindowAttributes(GetSafeHwnd(), RGB(0, 0, 0), 128, LWA_ALPHA);
 #if 1
 		::SetWindowPos(GetSafeHwnd(),HWND_TOPMOST,m_rcScreen.left,m_rcScreen.top,
 			m_rcScreen.Width(),m_rcScreen.Height(),0);
@@ -103,6 +111,26 @@ BOOL CClipWnd::IsOccludedByFrame(POINT* pt)
 	GetWindowRgn(rgn);
 	return rgn.PtInRegion(point);
 }
+void CClipWnd::EnableAutoPress(BOOL bEnable)
+{
+	if((!m_bAutoPress)&&bEnable)
+	{
+		m_bAutoPress=TRUE;
+		SetTimer(ID_TIMER_PRESS,1,NULL);
+	}
+	else if(m_bAutoPress&&(!bEnable))
+	{
+		m_bAutoPress=FALSE;
+		KillTimer(ID_TIMER_PRESS);
+		if(m_iStep>=0&&m_iStep%2==0&&m_CapStat.hWnd!=NULL)
+		{
+			CPoint pt=m_ptClick;
+			::ScreenToClient(m_CapStat.hWnd,&pt);
+			::SendMessage(m_CapStat.hWnd,WM_LBUTTONUP,0,MAKELONG(pt.x,pt.y));
+		}
+		m_iStep=-1;
+	}
+}
 
 BEGIN_MESSAGE_MAP(CClipWnd, CWnd)
 	ON_WM_CREATE()
@@ -114,6 +142,9 @@ BEGIN_MESSAGE_MAP(CClipWnd, CWnd)
 	ON_WM_MOUSEMOVE()
 	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
+	ON_WM_KEYUP()
+	ON_WM_TIMER()
+	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
 BOOL CClipWnd::OnEraseBkgnd(CDC* pDC)
@@ -152,6 +183,22 @@ void CClipWnd::OnPaint()
 
 	CBrush brush(RGB(255,0,0));
 	dc.FillRgn(&rgnc,&brush);
+
+	if(m_bShowClick)
+	{
+		CPen pen(PS_SOLID,2,RGB(255,0,0));
+		CBrush brush2;
+		brush2.CreateSolidBrush(RGB(0,255,0));
+		CPen* oldpen=dc.SelectObject(&pen);
+		CBrush* oldbrush=dc.SelectObject(&brush2);
+		int radius=m_rcScreen.Height()/100;
+		CPoint pt=m_ptClick;
+		ScreenToClient(&pt);
+		dc.Ellipse(m_ptClick.x-radius,m_ptClick.y-radius,
+			m_ptClick.x+radius,m_ptClick.y+radius);
+		dc.SelectObject(oldpen);
+		dc.SelectObject(oldbrush);
+	}
 }
 
 
@@ -228,7 +275,12 @@ void CClipWnd::OnLButtonDown(UINT nFlags, CPoint point)
 	// TODO: Add your message handler code here and/or call default
 	CPoint pt=point;
 	ClientToScreen(&pt);
-	if((nFlags&MK_CONTROL))
+	if(m_bShowClick)
+	{
+		m_ptClick=pt;
+		Invalidate();
+	}
+	else if((nFlags&MK_CONTROL))
 	{
 		if(!ComputeCaptureWnd(&pt,&m_CapStat.hWnd,&m_CapStat.rcWnd))
 			m_CapStat.rcWnd=CRect(0,0,0,0);
@@ -249,10 +301,80 @@ void CClipWnd::OnLButtonUp(UINT nFlags, CPoint point)
 	// TODO: Add your message handler code here and/or call default
 	CPoint pt=point;
 	ClientToScreen(&pt);
-	if(m_CapStat.hWnd!=NULL)
+	if(m_bShowClick)
+	{
+		//Do nothing
+	}
+	else if(m_CapStat.hWnd!=NULL)
 	{
 		::ScreenToClient(m_CapStat.hWnd,&pt);
 		::SendMessage(m_CapStat.hWnd,WM_LBUTTONUP,0,MAKELONG(pt.x,pt.y));
 	}
 	CWnd::OnLButtonUp(nFlags, point);
+}
+
+
+void CClipWnd::OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	// TODO: Add your message handler code here and/or call default
+	switch(nChar)
+	{
+	case VK_SHIFT:
+		m_bShowClick=!m_bShowClick;
+		if(!m_bShowClick)
+			EnableAutoPress(FALSE);
+		break;
+	case VK_SPACE:
+		if(m_bShowClick)
+			m_ptClick=m_rcScreen.CenterPoint();
+		break;
+	case VK_RETURN:
+		EnableAutoPress(TRUE);
+		break;
+	}
+	Invalidate();
+	CWnd::OnKeyUp(nChar, nRepCnt, nFlags);
+}
+
+
+void CClipWnd::OnTimer(UINT_PTR nIDEvent)
+{
+	// TODO: Add your message handler code here and/or call default
+	if(nIDEvent==ID_TIMER_PRESS)
+	{
+		if((++m_iStep)==num_step)
+			m_iStep=0;
+		switch(m_iStep%2)
+		{
+		case 0:
+			if(m_CapStat.hWnd!=NULL)
+			{
+				CPoint pt=m_ptClick;
+				::ScreenToClient(m_CapStat.hWnd,&pt);
+				::SendMessage(m_CapStat.hWnd,WM_LBUTTONDOWN,MK_LBUTTON,MAKELONG(pt.x,pt.y));
+			}
+			break;
+		case 1:
+			if(m_CapStat.hWnd!=NULL)
+			{
+				CPoint pt=m_ptClick;
+				::ScreenToClient(m_CapStat.hWnd,&pt);
+				::SendMessage(m_CapStat.hWnd,WM_LBUTTONUP,0,MAKELONG(pt.x,pt.y));
+			}
+			break;
+		default:
+			m_iStep=0;
+			break;
+		}
+		KillTimer(ID_TIMER_PRESS);
+		SetTimer(ID_TIMER_PRESS,(UINT_PTR)step_time_millisec[m_iStep],NULL);
+	}
+	CWnd::OnTimer(nIDEvent);
+}
+
+
+void CClipWnd::OnDestroy()
+{
+	EnableAutoPress(FALSE);
+	CWnd::OnDestroy();
 }

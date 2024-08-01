@@ -10,12 +10,17 @@ public:
 	BOOL ComputeCaptureWnd(POINT* pt,HWND* phWnd,LPRECT lpRect);
 	BOOL DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent=NULL);
 	BOOL IsOccludedByFrame(POINT* pt);
+	void EnableAutoPress(BOOL bEnable);
 
 private:
 	CWnd* m_pWndHost;
 	CRect m_rcScreen;
 	CRect m_rcWndCapture;
 	CaptureStat m_CapStat;
+	CPoint m_ptClick;
+	BOOL m_bShowClick;
+	BOOL m_bAutoPress;
+	int m_iStep;
 
 private:
 	virtual void PostNcDestroy();
@@ -31,4 +36,7 @@ private:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	afx_msg void OnKeyUp(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnDestroy();
 };
