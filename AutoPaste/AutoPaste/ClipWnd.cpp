@@ -38,34 +38,23 @@ BOOL CClipWnd::ParseCoordinate(LPCTSTR filename)
 	if(!file.Open(filename,CFile::modeRead))
 		return FALSE;
 	UINT_PTR size=(UINT_PTR)file.GetLength();
-	char* buf=new char[size];
-	char numbuf[50];
+	char* buf=new char[size+1];
 	file.Read(buf,(UINT)size);
+	buf[size]=0;
 	m_ptClick.x=m_ptClick.y=-1;
 	char *ptr=buf,*end,*strend=buf+size;
 	for(end=ptr;end<strend&&*end!=',';end++);
-	if(*end!=','||end-ptr>=50)
+	if(*end!=',')
 		goto fail;
-
-	memcpy(numbuf,ptr,end-ptr);
-	numbuf[end-ptr]=0;
-	sscanf_s(numbuf,"%d",&m_ptClick.x);
-
+	*end=0;
+	sscanf_s(ptr,"%d",&m_ptClick.x);
 	ptr=end+1,end=strend;
-	if(end-ptr>=50)
-		goto fail;
-
-	memcpy(numbuf,ptr,end-ptr);
-	numbuf[end-ptr]=0;
-	sscanf_s(numbuf,"%d",&m_ptClick.y);
-
+	sscanf_s(ptr,"%d",&m_ptClick.y);
 fail:
 	delete[] buf;
 	file.Close();
-
 	if(m_ptClick.x==-1||m_ptClick.y==-1)
 		return FALSE;
-
 	return TRUE;
 }
 
