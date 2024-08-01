@@ -30,6 +30,45 @@ BOOL CClipWnd::PreCreateWindow(CREATESTRUCT& cs)
 	return CWnd::PreCreateWindow(cs);
 }
 
+BOOL CClipWnd::ParseCoordinate(LPCTSTR filename)
+{
+	if(!PathFileExists(filename))
+		return FALSE;
+	CFile file;
+	if(!file.Open(filename,CFile::modeRead))
+		return FALSE;
+	UINT_PTR size=(UINT_PTR)file.GetLength();
+	char* buf=new char[size];
+	char numbuf[50];
+	file.Read(buf,(UINT)size);
+	m_ptClick.x=m_ptClick.y=-1;
+	char *ptr=buf,*end,*strend=buf+size;
+	for(end=ptr;end<strend&&*end!=',';end++);
+	if(*end!=','||end-ptr>=50)
+		goto fail;
+
+	memcpy(numbuf,ptr,end-ptr);
+	numbuf[end-ptr]=0;
+	sscanf_s(numbuf,"%d",&m_ptClick.x);
+
+	ptr=end+1,end=strend;
+	if(end-ptr>=50)
+		goto fail;
+
+	memcpy(numbuf,ptr,end-ptr);
+	numbuf[end-ptr]=0;
+	sscanf_s(numbuf,"%d",&m_ptClick.y);
+
+fail:
+	delete[] buf;
+	file.Close();
+
+	if(m_ptClick.x==-1||m_ptClick.y==-1)
+		return FALSE;
+
+	return TRUE;
+}
+
 int CClipWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
@@ -41,7 +80,8 @@ int CClipWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (!GetMonitorInfo(hmon, &mi))
 		return -1;
 	m_rcScreen=mi.rcMonitor;
-	m_ptClick=m_rcScreen.CenterPoint();
+	if(!ParseCoordinate(_T("coord")))
+		m_ptClick=m_rcScreen.CenterPoint();
 	return 0;
 }
 
@@ -376,5 +416,13 @@ void CClipWnd::OnTimer(UINT_PTR nIDEvent)
 void CClipWnd::OnDestroy()
 {
 	EnableAutoPress(FALSE);
+	char buf[100];
+	sprintf_s(buf,100,"%d,%d",m_ptClick.x,m_ptClick.y);
+	CFile file;
+	if(file.Open(_T("coord"),CFile::modeCreate|CFile::modeWrite))
+	{
+		file.Write(buf,(UINT)strlen(buf));
+		file.Close();
+	}
 	CWnd::OnDestroy();
 }

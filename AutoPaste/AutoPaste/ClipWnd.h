@@ -11,6 +11,7 @@ public:
 	BOOL DetectWindow(POINT* pt,HWND* phWnd,LPRECT lpRect,HWND hWndParent=NULL);
 	BOOL IsOccludedByFrame(POINT* pt);
 	void EnableAutoPress(BOOL bEnable);
+	BOOL ParseCoordinate(LPCTSTR filename);
 
 private:
 	CWnd* m_pWndHost;
