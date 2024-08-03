@@ -369,7 +369,7 @@ void CAutoPasteDlg::CopyWindow()
 			bSuc=FALSE;
 			goto end;
 		}
-		if(!(bSuc=grab->InitObject(m_hWndCopy)))
+		if(!(bSuc=grab->InitObject(::GetDesktopWindow())))
 			goto end;
 		if(!(bSuc=grab->GrabToFile(full)))
 			goto end;

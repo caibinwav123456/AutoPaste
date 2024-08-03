@@ -54,7 +54,6 @@ ImageGrabD3D9::~ImageGrabD3D9()
 }
 BOOL ImageGrabD3D9::InitObject(HWND hWnd)
 {
-	hWnd=GetDesktopWindow();
 	if(hWnd==NULL||!IsWindow(hWnd))
 		return FALSE;
 	m_hWnd=hWnd;
