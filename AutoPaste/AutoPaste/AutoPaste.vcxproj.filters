@@ -45,6 +45,9 @@
     <ClInclude Include="struct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="d3dinterface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AutoPaste.cpp">
@@ -57,6 +60,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ClipWnd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="d3dinterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

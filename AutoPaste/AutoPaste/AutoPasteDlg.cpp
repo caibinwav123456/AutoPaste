@@ -7,6 +7,7 @@
 #include "AutoPasteDlg.h"
 #include "afxdialogex.h"
 #include "struct.h"
+#include "d3dinterface.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -161,14 +162,13 @@ END_MESSAGE_MAP()
 
 CAutoPasteDlg::CAutoPasteDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(CAutoPasteDlg::IDD, pParent),m_bCapture(FALSE),m_pWndCopy(NULL),m_pClipWnd(NULL)
-	,m_arrBmp(NUM_BMP_ARR)
 	,m_hWndCopy(0)
 	,m_tTimePicker(2000,1,1,0,5,0)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 	TCHAR desktop[256];
 	SHGetSpecialFolderPath(0,desktop,CSIDL_DESKTOPDIRECTORY,0);
-	m_strSavePath=CString(desktop)+_T("\\backup.bmp");
+	m_strSavePath=CString(desktop)+_T("\\backup.png");
 }
 
 void CAutoPasteDlg::DoDataExchange(CDataExchange* pDX)
@@ -357,87 +357,22 @@ void CAutoPasteDlg::CopyWindow()
 		m_rcWndCopy=CRect(0,0,0,0);
 		return;
 	}
-	m_pWndCopy=FromHandle(m_hWndCopy);
-	CWindowDC dc(m_pWndCopy);
-	CDC mdc;
-	mdc.CreateCompatibleDC(&dc);
-	CRect rectWndCopy;
-	m_pWndCopy->GetWindowRect(&rectWndCopy);
-	rectWndCopy.MoveToXY(0,0);
-	CBitmap bmp;
-	bmp.CreateCompatibleBitmap(&dc,rectWndCopy.Width(),rectWndCopy.Height());
-	CBitmap* oldbmp=mdc.SelectObject(&bmp);
-	mdc.BitBlt(0,0,rectWndCopy.Width(),rectWndCopy.Height(),&dc,0,0,SRCCOPY);
-	int infoheader_rgbquad_size=sizeof(BITMAPINFOHEADER)+3*sizeof(RGBQUAD);
-	BITMAPINFO* info=(BITMAPINFO*)new char[infoheader_rgbquad_size];
-	memset(info,0,infoheader_rgbquad_size);
-	info->bmiHeader.biSize=sizeof(BITMAPINFO);
-	GetDIBits(mdc.m_hDC,(HBITMAP)bmp.m_hObject,0,rectWndCopy.Height(),NULL,info,DIB_RGB_COLORS);
-	BITMAPFILEHEADER fh;
-	memset(&fh,0,sizeof(fh));
-	fh.bfType=0x4d42;
-	fh.bfSize=sizeof(fh)+infoheader_rgbquad_size;
-	fh.bfOffBits=fh.bfSize;
-	fh.bfSize+=info->bmiHeader.biSizeImage;
-	BYTE* pixel=new BYTE[fh.bfSize];
-	int ret=GetDIBits(mdc.m_hDC,(HBITMAP)bmp.m_hObject,0,rectWndCopy.Height(),pixel+fh.bfOffBits,info,DIB_RGB_COLORS);
-	memcpy(pixel,&fh,sizeof(fh));
-	memcpy(pixel+sizeof(fh),info,infoheader_rgbquad_size);
-	UINT filesize=fh.bfSize;
-	BOOL changed=TRUE;
-	CBmpData* bmpdata=new CBmpData(pixel,filesize);
-	CBmpArray::Iterator iter(&m_arrBmp);
-	for(iter.SetEnd();!iter.Start();)
-	{
-		iter--;
-		if(**iter==*bmpdata)
-		{
-			changed=FALSE;
-			break;
-		}
-	}
-#if 0
-	BYTE* tmp=m_pBmpData;
-	if(m_pBmpData==NULL||filesize!=m_pBmpDataLen||memcmp(pixel,m_pBmpData,filesize)!=0)
-		changed=TRUE;
-	m_pBmpDataLen=filesize;
-	m_pBmpData=pixel;
-	if(tmp!=NULL)
-		delete[] tmp;
-#endif
-	delete[] (char*)info;
-	mdc.SelectObject(oldbmp);
-	mdc.DeleteDC();
-	bmp.DeleteObject();
-	if(!changed)
-	{
-		delete bmpdata;
-		return;
-	}
-	if(m_arrBmp.Full())
-	{
-		CBmpData*& front=m_arrBmp.PopFront();
-		ASSERT(&front!=NULL);
-		if(front!=NULL)
-		{
-			delete front;
-			front=NULL;
-		}
-	}
-	CBmpData*& back=m_arrBmp.PushBack();
-	ASSERT(&back!=NULL);
-	ASSERT(back==NULL);
-	back=bmpdata;
 	static int cnt=1;
 	CString full;
 	if(CheckPath())
 	{
+		BOOL bSuc=TRUE;
 		CalcFullPath(m_strSavePath,full,cnt);
-		CFile file;
-		while(!file.Open(full,CFile::modeCreate|CFile::modeWrite))
-			Sleep(10*1000);
-		file.Write(bmpdata->m_pBmpData,bmpdata->m_pBmpDataLen);
-		file.Close();
+		ImageGrab* grab=GetImageGrabD3D9();
+		if(grab==NULL)
+		{
+			bSuc=FALSE;
+			goto end;
+		}
+		if(!(bSuc=grab->InitObject(m_hWndCopy)))
+			goto end;
+		if(!(bSuc=grab->GrabToFile(full)))
+			goto end;
 		for(int i=cnt-100;i<cnt-10;i++)
 		{
 			CalcFullPath(m_strSavePath,full,i);
@@ -445,6 +380,11 @@ void CAutoPasteDlg::CopyWindow()
 				DeleteFile(full);
 		}
 		cnt++;
+	end:
+		if(grab!=NULL)
+			grab->Release();
+		if(!bSuc)
+			MessageBox(_T("Error"));
 	}
 }
 
@@ -505,7 +445,7 @@ void CAutoPasteDlg::OnClickedButtonPath()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	const int buflen=2048;
-	CFileDialog dlg(FALSE,NULL,NULL,OFN_HIDEREADONLY|OFN_OVERWRITEPROMPT,_T("Bitmap Files|*.bmp||"),this);
+	CFileDialog dlg(FALSE,NULL,NULL,OFN_HIDEREADONLY|OFN_OVERWRITEPROMPT,_T("Portable Network Graphics|*.png||"),this);
 	TCHAR* strFileName=new TCHAR[buflen];
 	TCHAR* strFileTitle=new TCHAR[buflen];
 	CString dir,name;

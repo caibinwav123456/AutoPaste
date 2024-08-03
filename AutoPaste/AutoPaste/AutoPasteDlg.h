@@ -79,11 +79,6 @@ private:
 	CRect m_rcWndCopy;
 	CClipWnd* m_pClipWnd;
 
-#if 0
-	BYTE* m_pBmpData;
-	UINT m_pBmpDataLen;
-#endif
-	CBmpArray m_arrBmp;
 	CDateTimeCtrl m_TimeInterval;
 	CTime m_tTimePicker;
 	CString m_strSavePath;
